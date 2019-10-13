@@ -7,15 +7,8 @@ import 'package:flutter/material.dart';
 import 'client_config.dart';
 import 'client_error.dart';
 
-//【1】: GET,POST,请求头,请求体,参数        ---------------- Finish
-//【2】: BaseUrl（公共） 的实现             ---------------- Finish
-//【3】: 请求超时时间设置  
-//【4】:   
 
-// String HttpClientBaseUrl;   /// 全局配置
-//---------------------------------------------------------------
-
-/// 请求对象
+/// HttpClientManager
 class HttpClientManager {
 
   static setRequestBaseUrl(String baseUrl){
