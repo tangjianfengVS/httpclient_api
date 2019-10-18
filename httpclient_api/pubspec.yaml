@@ -1,7 +1,7 @@
 name: httpclient_api
 description: Flutter is a set of high-performance network framework API based on HttpClient package, supporting iOS and Android.
 version: 0.0.1
-author: 汤建锋<tangjianfeng.vs@gmail.com>
+author: tangjianfeng<tangjianfeng.wisdom@gmail.com>
 homepage: https://github.com/tangjianfengVS/httpclient_api
 
 environment:
