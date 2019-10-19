@@ -2,7 +2,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'client_config.dart';
 import 'client_error.dart';
@@ -16,39 +15,42 @@ class HttpClientManager {
   }
 
   static setRequestTimeout(int timeout){
-    requestTimeout = timeout;
+    requestConnectTimeout = timeout;
   }
 
   static String requestBaseUrl; 
 
-  static int requestTimeout;
+  static int requestConnectTimeout;
+
+  /// connect timeout, default: '35's
+  static int setConnectTimeout = 35; 
 
   static request({ 
     @required URLMethod urlMethod, 
-    @required String urlPath, 
+    @required String urlPath,
     @required APISuccessResponseHandler success, 
     @required APIFailureResponseHandler failure,
     String baseUrl,
-    int timeout,
     Map<String, dynamic> parames, 
     Map<String, dynamic> header,
     APIWillRequestHandler willRequest }) async {
-      /// check URL
+      // check URL
       URLError error = HttpClientError.checkURL(requestBaseUrl: requestBaseUrl, baseUrl:baseUrl, urlPath:urlPath);
       Uri url = error.url;
-      if (url == null){
+      if (url == null) {
         failure(error.errCode, error.errMsg, error.responseData.toString());
         return;
       }
 
-      /// 参数
+      // set parames
       parames = parames == null?{}:parames;
       header = header == null?{}:header;
     
       HttpClient httpClient = new HttpClient();
+      httpClient.connectionTimeout = Duration(seconds: requestConnectTimeout == 0 ? setConnectTimeout:requestConnectTimeout);
       HttpClientRequest request;
-      /// 设置支持解析数据类型 和 请求头                                                      
-      Map<String, dynamic> headers = {HttpHeaders.contentTypeHeader: 'application/json'};
+      // 设置支持解析数据类型 和 请求头                                                      
+      Map<String, dynamic> headers = { HttpHeaders.contentTypeHeader: 'application/json' };
       headers.addAll(header);
 
       try{
@@ -103,14 +105,16 @@ class HttpClientManager {
         ResponseError error = HttpClientError.tryCatch(e);
         failure(error.errCode, error.errMsg, error.errBody);
       }
-    }
+  }
+
 
   static String getBaseUrl(){
     return requestBaseUrl != null ? requestBaseUrl:'';
   }
+  
 
   static int getTimeout(){
-    return requestTimeout;
+    return requestConnectTimeout;
   }
 }
 

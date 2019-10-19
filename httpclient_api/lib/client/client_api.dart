@@ -7,41 +7,49 @@ import 'client_manager.dart';
 
 class HttpClientAPI {
 
-  /// 配置全局: RequestBaseUrl
+  /// set global config: Request baseUrl
   static setAPIRequestBaseUrl(String baseUrl){
     HttpClientManager.setRequestBaseUrl(baseUrl);
   }
 
 
-  /// 配置全局: RequestTimeout
+  /// set global config, Unit 's': Request connect timeout，default: '35's
   static setAPIRequestTimeout({int timeout}){
     HttpClientManager.setRequestTimeout(timeout);
   }
 
 
-  /// 获取全局: RequestTimeout
+  /// get global config: Request baseUrl
   static String getAPIRequestBaseUr(){
     return HttpClientManager.requestBaseUrl;
   }
 
   
-  /// 获取全局: RequestTimeout
+  /// get global config, Unit 's': Request connect timeout 
   static int getAPIRequestTimeout(){
-    return HttpClientManager.requestTimeout;
+    return HttpClientManager.requestConnectTimeout;
   }
 
 
-  /// Start Request
+  /// Start Request Use HttpClient
+  /// required [urlMethod] to Request with type.
+  /// required [urlPath] to Request url's path.
+  /// required [success] to Response success results data.
+  /// required [failure] to Response failure results data.
+  ///
+  /// [baseUrl] to Request url's baseUrl, if value 'null', using global config [setAPIRequestBaseUrl] value.
+  /// [parames] to Request parameters.
+  /// [header] to Request public parameters, on the Request header.
+  /// [willRequest] to check will Request object data.
   static request({ 
     @required URLMethod urlMethod, 
     @required String urlPath, 
     @required APISuccessResponseHandler success, 
     @required APIFailureResponseHandler failure,
     String baseUrl,
-    int timeout,
     Map<String, dynamic> parames,
     Map<String, dynamic> header,
     APIWillRequestHandler willRequest }) async {
-      HttpClientManager.request(urlMethod:urlMethod, urlPath:urlPath, success:success, failure:failure, baseUrl:baseUrl, timeout:timeout, parames:parames, header:header, willRequest:willRequest);
+      HttpClientManager.request(urlMethod:urlMethod, urlPath:urlPath, success:success, failure:failure, baseUrl:baseUrl, parames:parames, header:header, willRequest:willRequest);
   }
 }

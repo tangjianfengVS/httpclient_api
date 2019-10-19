@@ -2,3 +2,4 @@
 
 * TODO: Describe initial release.
 [0.0.4] - TODO:httpclient_api: 基于 HttpClient 封装的网络数据流框架
+[0.0.5] - TODO:httpclient_api: 基于 HttpClient 封装的网络数据流框架，设置请求超时时间
