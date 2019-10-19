@@ -23,7 +23,7 @@ class HttpClientManager {
   static int requestConnectTimeout;
 
   /// connect timeout, default: '35's
-  static int setConnectTimeout = 35; 
+  static int connectTimeout = 35; 
 
   static request({ 
     @required URLMethod urlMethod, 
@@ -45,13 +45,13 @@ class HttpClientManager {
       // set parames
       parames = parames == null?{}:parames;
       header = header == null?{}:header;
-    
-      HttpClient httpClient = new HttpClient();
-      httpClient.connectionTimeout = Duration(seconds: requestConnectTimeout == 0 ? setConnectTimeout:requestConnectTimeout);
-      HttpClientRequest request;
-      // 设置支持解析数据类型 和 请求头                                                      
+      // 设置支持解析数据类型 和 公共请求头date                                                      
       Map<String, dynamic> headers = { HttpHeaders.contentTypeHeader: 'application/json' };
       headers.addAll(header);
+    
+      HttpClient httpClient = new HttpClient();
+      httpClient.connectionTimeout = Duration(seconds: requestConnectTimeout < 0?connectTimeout:requestConnectTimeout);
+      HttpClientRequest request;
 
       try{
         switch (urlMethod) {
@@ -111,7 +111,7 @@ class HttpClientManager {
   static String getBaseUrl(){
     return requestBaseUrl != null ? requestBaseUrl:'';
   }
-  
+
 
   static int getTimeout(){
     return requestConnectTimeout;

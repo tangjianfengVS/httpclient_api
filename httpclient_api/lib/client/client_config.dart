@@ -13,7 +13,7 @@ typedef APISuccessResponseHandler = void Function(Map<String, dynamic> response)
 
 typedef APIFailureResponseHandler = void Function(int code, String message, String rawResponseString);
 
-/// url 错误 码
+/// url error code
 final int urlErrorCode = -111111;  
 
-final String urlErrorMsg = '请求失败，请检查 Http或Https URL 地址配置参数';
+final String urlErrorMsg = '无效的URL，请检查此 Http或Https URL配置的地址参数';
