@@ -1,5 +1,4 @@
 
-
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'client_config.dart';
@@ -75,12 +74,16 @@ class HttpClientError {
       return error;
     }
 
-    Map<String, dynamic> data = responseData['data'];
     if (code < 0 && msg != null && msg.length > 0){
       error.errCode = code;
       error.errMsg = msg;
     }else{
-      error.data = data != null ? data:[];
+      dynamic data = responseData['data'];
+      if (data is Map){
+        error.data = data != null ? data:{};
+      }else{
+        error.data = responseData != null ? responseData:{};
+      }
     }
     return error;
   }
@@ -91,6 +94,10 @@ class HttpClientError {
     if (e is SocketException){
       error.errCode = e.osError.errorCode;
       error.errMsg = e.message;
+      error.errBody = e.toString();
+    }else if (e is FileSystemException){
+      error.errCode = e.osError.errorCode;
+      error.errMsg = e.message + ' ' + e.path;
       error.errBody = e.toString();
     }
     return error;

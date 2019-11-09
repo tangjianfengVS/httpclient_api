@@ -20,10 +20,55 @@ class HttpClientManager {
 
   static String requestBaseUrl; 
 
-  static int requestConnectTimeout;
+  static int requestConnectTimeout = -1;
 
   /// connect timeout, default: '35's
   static int connectTimeout = 35; 
+
+
+  static postBytes({ 
+    @required String urlPath,
+    @required List<int> bytes,
+    @required APISuccessResponseHandler success, 
+    @required APIFailureResponseHandler failure,
+    String baseUrl,
+    Map<String, dynamic> headers}) async {
+      // check URL
+      URLError error = HttpClientError.checkURL(requestBaseUrl: requestBaseUrl, baseUrl:baseUrl, urlPath:urlPath);
+      Uri url = error.url;
+      if (url == null) {
+        failure(error.errCode, error.errMsg, error.responseData.toString());
+        return;
+      }
+      // set bytes 设置支持解析数据类型 和 公共请求头date 
+      bytes = bytes == null?[]:bytes;
+      headers = headers == null?{}:headers;                                       
+      headers.addAll(headers);
+    
+      HttpClient httpClient = new HttpClient();
+      httpClient.connectionTimeout = Duration(seconds: requestConnectTimeout < 0?connectTimeout:requestConnectTimeout);
+      HttpClientRequest request = await httpClient.postUrl(url);
+
+      try {
+        for (var key in headers.keys) {                  /// 设置公共请求头                  
+          dynamic value = headers[key];
+          request.headers.set(key, value);
+        }
+
+        request.add(bytes);                              /// 请求体参数
+
+        HttpClientResponse response = await request.close();
+        String responseBody = await response.transform(utf8.decoder).join();
+        httpClient.close();
+        print(request.headers);
+        responseJson(response:response, responseBody:responseBody, success: success, failure: failure);
+      }catch (e){
+        httpClient.close();
+        ResponseError error = HttpClientError.tryCatch(e);
+        failure(error.errCode, error.errMsg, error.errBody);
+      }
+    }
+
 
   static request({ 
     @required URLMethod urlMethod, 
@@ -83,15 +128,34 @@ class HttpClientManager {
 
         HttpClientResponse response = await request.close();
         String responseBody = await response.transform(utf8.decoder).join();
-        Map<String, dynamic> responseData = json.decode(responseBody);
         httpClient.close();
+        print(request.headers);
+        responseJson(response:response, responseBody:responseBody, success: success, failure: failure);
+      }catch (e){
+        httpClient.close();
+        ResponseError error = HttpClientError.tryCatch(e);
+        failure(error.errCode, error.errMsg, error.errBody);
+      }
+  }
 
-        if (response.statusCode == HttpStatus.ok) {
-          print(request.headers);
-          print("$responseData");
+
+  static responseJson({
+    @required HttpClientResponse response, 
+    @required String responseBody,
+    @required APISuccessResponseHandler success, 
+    @required APIFailureResponseHandler failure}) {
+      dynamic jsonData = json.decode(responseBody);
+      Map<String, dynamic> responseData = {};
+      if (jsonData is Map) {
+        responseData = jsonData;
+      } else if (jsonData is List) {
+        responseData = {'data': jsonData};
+      }
+      print("$jsonData");
+
+      if (response.statusCode == HttpStatus.ok) {
           ResponseError error = HttpClientError.checkResponse(responseData: responseData, succeed: true);
-          failure(error.errCode, error.errMsg, responseBody);
-          if (error.data != null){
+          if (error.data != null) {
             success(error.data);
           }else{
             failure(error.errCode, error.errMsg, responseBody);
@@ -100,12 +164,7 @@ class HttpClientManager {
           ResponseError error = HttpClientError.checkResponse(responseData: responseData);
           failure(error.errCode, error.errMsg, responseBody);
         }
-      }catch (e){
-        httpClient.close();
-        ResponseError error = HttpClientError.tryCatch(e);
-        failure(error.errCode, error.errMsg, error.errBody);
-      }
-  }
+   }
 
 
   static String getBaseUrl(){
