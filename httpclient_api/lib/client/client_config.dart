@@ -20,6 +20,9 @@ typedef APIWillUpLoaderListHandler = void Function(List<HttpClientFileInfo> file
 /// url error code
 final int urlErrorCode = -111111;  
 
+/// get asset imgae error code
+final int imgaeErrorCode = -222222; 
+
 final String urlErrorMsg = '无效的URL，请检查此 Http或Https URL配置的地址参数';
 
 class HttpClientFileInfo{

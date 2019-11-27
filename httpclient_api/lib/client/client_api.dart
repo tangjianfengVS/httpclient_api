@@ -1,7 +1,7 @@
 
-
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'client_config.dart';
 import 'client_manager.dart';
@@ -100,5 +100,47 @@ class HttpClientAPI {
     String token,  
     APIWillUpLoaderListHandler willFileList }) async {
       HttpClientUpLoader.upLoadFileList(urlPath:urlPath, fileList:fileList,success:success,failure:failure,baseUrl:baseUrl,accept:accept,token:token,willFileList:willFileList);
+  }
+
+
+  /// Start upLoadImage Use HttpClient
+  /// upLoadImage [urlPath] to UpLoad url's path.
+  /// upLoadImage [imageProvider] to UpLoad image data source.
+  /// upLoadImage [success] to UpLoad success results data.
+  /// upLoadImage [failure] to UpLoad failure results data.
+  ///
+  /// [baseUrl] to UpLoad url's baseUrl, if value 'null', using global config [setAPIRequestBaseUrl] value.
+  /// [accept] to UpLoad headers Accept, if value 'null', default '*/*'.
+  /// [token] to UpLoad headers Authorization, value = 'bearer' + [token].
+  static upLoadImage({ 
+    @required String urlPath, 
+    @required ImageProvider imageProvider, 
+    @required APISuccessResponseHandler success, 
+    @required APIFailureResponseHandler failure,
+    String baseUrl,
+    String accept, 
+    String token }) async {
+      HttpClientUpLoader.upLoadImage(urlPath:urlPath, imageProvider:imageProvider, success:success, failure:failure, baseUrl:baseUrl, accept:accept, token:token);
+  }
+
+
+  /// Start upLoadImageList Use HttpClient
+  /// upLoadImage [urlPath] to UpLoad url's path.
+  /// upLoadImage [imageProviderList] to UpLoad image data source by array.
+  /// upLoadImage [success] to UpLoad success results data.
+  /// upLoadImage [failure] to UpLoad failure results data.
+  ///
+  /// [baseUrl] to UpLoad url's baseUrl, if value 'null', using global config [setAPIRequestBaseUrl] value.
+  /// [accept] to UpLoad headers Accept, if value 'null', default '*/*'.
+  /// [token] to UpLoad headers Authorization, value = 'bearer' + [token].
+  static upLoadImageList({ 
+    @required String urlPath, 
+    @required List<ImageProvider> imageProviderList, 
+    @required APISuccessResponseHandler success, 
+    @required APIFailureResponseHandler failure,
+    String baseUrl,
+    String accept, 
+    String token }) async {
+      HttpClientUpLoader.upLoadImageList(urlPath:urlPath, imageProviderList:imageProviderList, success:success, failure:failure, baseUrl:baseUrl, accept:accept, token:token);
   }
 }

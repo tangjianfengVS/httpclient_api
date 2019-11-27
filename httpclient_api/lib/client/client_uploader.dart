@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 
 import 'client_config.dart';
@@ -13,6 +15,150 @@ import 'client_manager.dart';
 
 class HttpClientUpLoader{
 
+  /// set image Uint8List 
+  static Future<Uint8List> bytesProvider({
+    @required Uint8List bytes,
+    @required String boundary,
+    @required String filename,
+    @required String fileType
+  }) async {
+    String field = fileType + '-upload';
+    // 构造 FormData 文件字段数据
+    String data = '--$boundary\r\nContent-Disposition: form-data; name="$field"; ' +
+                      'filename="${getFileFullName(filename)}"\r\nContent-Type: ' +
+                      '$fileType\r\n\r\n';
+    print("$data");         
+
+    var controller = new StreamController<List<int>>(sync: true);
+    controller.add(data.codeUnits);
+    controller.add(bytes);
+    controller.add("\r\n--$boundary--\r\n".codeUnits);
+    controller.close();
+
+    var completer = new Completer<Uint8List>();
+    var sink = new ByteConversionSink.withCallback(
+                    (bytes) => completer.complete(new Uint8List.fromList(bytes))
+                   );
+    controller.stream.listen(sink.add, onError: completer.completeError, onDone: sink.close, cancelOnError: true);
+    Uint8List bytesNew = await completer.future;
+    return bytesNew;
+  }
+
+
+  /// start postImageBytes 
+  static postImageBytes({ 
+    @required String urlPath, 
+    @required List<Uint8List> bytesList,
+    @required List<Map> headersList,
+    @required APISuccessResponseHandler success, 
+    @required APIFailureResponseHandler failure,
+    String baseUrl }) {
+      int count = bytesList.length;
+      bool responseFailure = false;
+      List<dynamic> responsList = [];
+
+      for (var i = 0; i < bytesList.length; i++) {
+          List<int>bytes = bytesList[i];
+          Map headers = headersList[i];
+
+          HttpClientManager.postBytes(baseUrl: baseUrl, urlPath: urlPath, bytes: bytes, headers: headers, success: (Map<String,dynamic> response) {
+            if (responseFailure){ return; }
+
+            count = count - 1;
+            dynamic data = response['data'];
+            if (data != null) {
+              responsList.add(data);
+            }
+            if(count == 0) {
+              success({'data':responsList});
+            }
+          }, failure: (int code, String msg, String rawResponseString) {
+            responseFailure = true;
+            failure(code, msg, rawResponseString);
+          });
+        }
+    }
+
+
+  static upLoadImageList({ 
+    @required String urlPath, 
+    @required List<ImageProvider> imageProviderList,
+    @required APISuccessResponseHandler success, 
+    @required APIFailureResponseHandler failure,
+    String baseUrl,
+    String accept, 
+    String token}) async {
+      // check URL 
+      URLError error = HttpClientError.checkURL(requestBaseUrl: HttpClientManager.getBaseUrl(), baseUrl:baseUrl, urlPath:urlPath);
+      Uri url = error.url;
+      if (url == null) {
+        failure(error.errCode, error.errMsg, error.responseData.toString());
+        return;
+      }
+
+      accept = accept == null ? "*/*":accept;
+      List<Uint8List> bytesList = [];
+      List<Map> headersList = [];
+      
+      try {
+        for (ImageProvider imageProvider in imageProviderList) {
+          Uint8List bytes = await loadImageByProvider(imageProvider, failure: failure);
+          var boundary = _boundaryString();
+          String filename = boundary+'png';
+          String fileType = getMediaType(getFileExt(filename)).toLowerCase();  
+          String contentType = 'multipart/form-data; boundary=$boundary'; 
+          Map headers = _makeHttpHeaders(contentType, accept, token);
+          headersList.add(headers);
+
+          Uint8List bytesNew = await bytesProvider(bytes:bytes, boundary:boundary, filename:filename, fileType:fileType);      
+          bytes = bytesNew;
+          bytesList.add(bytes);
+        }
+
+        postImageBytes(urlPath:urlPath, bytesList:bytesList, headersList:headersList, success:success, failure:failure, baseUrl:baseUrl);
+      } catch (e) {
+        ResponseError error = HttpClientError.tryCatch(e);
+        failure(error.errCode, error.errMsg, error.errBody);
+      }
+  }
+
+
+  static upLoadImage({ 
+    @required String urlPath, 
+    @required ImageProvider imageProvider,
+    @required APISuccessResponseHandler success, 
+    @required APIFailureResponseHandler failure,
+    String baseUrl,
+    String accept, 
+    String token}) async {
+      // check URL 
+      URLError error = HttpClientError.checkURL(requestBaseUrl: HttpClientManager.getBaseUrl(), baseUrl:baseUrl, urlPath:urlPath);
+      Uri url = error.url;
+      if (url == null) {
+        failure(error.errCode, error.errMsg, error.responseData.toString());
+        return;
+      }
+      
+      try {
+        Uint8List bytes = await loadImageByProvider(imageProvider, failure: failure);
+        var boundary = _boundaryString();
+        String filename = boundary+'png';
+        String fileType = getMediaType(getFileExt(filename)).toLowerCase();  
+        String contentType = 'multipart/form-data; boundary=$boundary';
+        accept = accept == null ? "*/*":accept; 
+        Map headers = _makeHttpHeaders(contentType, accept, token);
+
+        Uint8List bytesNew = await bytesProvider(bytes:bytes, boundary:boundary, filename:filename, fileType:fileType);      
+        bytes = bytesNew;
+
+        HttpClientManager.postBytes(baseUrl: baseUrl, urlPath: urlPath, bytes: bytes, headers: headers, success: success, failure: failure);
+      } catch (e) {
+        ResponseError error = HttpClientError.tryCatch(e);
+        failure(error.errCode, error.errMsg, error.errBody);
+      }
+  }
+
+  
   static upLoadFile({ 
     @required String urlPath, 
     @required File file, 
@@ -34,29 +180,14 @@ class HttpClientUpLoader{
         List<int> bytes = await file.readAsBytes(); /// file转二进制
         var boundary = _boundaryString();
         String contentType = 'multipart/form-data; boundary=$boundary';
+        accept = accept == null ? "*/*":accept;
         Map headers = _makeHttpHeaders(contentType, accept, token); 
+
         String filename = file.path;
         String fileType = getMediaType(getFileExt(filename)).toLowerCase();
-        String field = fileType + '-upload';
-        accept = accept == null ? "*/*":accept;
-        // 构造 FormData 文件字段数据
-        String data = '--$boundary\r\nContent-Disposition: form-data; name="$field"; ' +
-                      'filename="${getFileFullName(filename)}"\r\nContent-Type: ' +
-                      '$fileType\r\n\r\n';
-        print("$data");         
-
-        var controller = new StreamController<List<int>>(sync: true);
-        controller.add(data.codeUnits);
-        controller.add(bytes);
-        controller.add("\r\n--$boundary--\r\n".codeUnits);
-        controller.close();
-
-        var completer = new Completer<Uint8List>();
-        var sink = new ByteConversionSink.withCallback(
-                    (bytes) => completer.complete(new Uint8List.fromList(bytes))
-                   );
-        controller.stream.listen(sink.add, onError: completer.completeError, onDone: sink.close, cancelOnError: true);
-        bytes = await completer.future;
+        
+        Uint8List bytesNew = await bytesProvider(bytes:bytes, boundary:boundary, filename:filename, fileType:fileType);      
+        bytes = bytesNew;
 
         if (willFile != null){
           HttpClientFileInfo file = HttpClientFileInfo();
@@ -71,6 +202,7 @@ class HttpClientUpLoader{
         failure(error.errCode, error.errMsg, error.errBody);
       }
   }
+
 
   static upLoadFileList({ 
     @required String urlPath, 
@@ -91,37 +223,23 @@ class HttpClientUpLoader{
       
       try {
         accept = accept == null ? "*/*":accept;
-        List<List<int>> bytesList = [];
+        List<Uint8List> bytesList = [];
         List<Map> headersList = [];
         List<HttpClientFileInfo> fileInfo = [];
 
         for (File file in fileList) {
-          List<int> bytes = await file.readAsBytes(); /// file转二进制
+          Uint8List bytes = await file.readAsBytes(); /// file转二进制
           var boundary = _boundaryString();
           String contentType = 'multipart/form-data; boundary=$boundary';
+          accept = accept == null ? "*/*":accept;
           Map headers = _makeHttpHeaders(contentType, accept, token);
           headersList.add(headers);
 
           String filename = file.path;
           String fileType = getMediaType(getFileExt(filename)).toLowerCase();
-          String field = fileType + '-upload';
-          // 构造 FormData 文件字段数据
-          String data = '--$boundary\r\nContent-Disposition: form-data; name="$field"; ' +
-                        'filename="${getFileFullName(filename)}"\r\nContent-Type: ' +
-                        '$fileType\r\n\r\n';
-          print("$data");    
-          var controller = new StreamController<List<int>>(sync: true);     
-          controller.add(data.codeUnits);
-          controller.add(bytes);
-          controller.add("\r\n--$boundary--\r\n".codeUnits);
-          controller.close();
 
-          var completer = new Completer<Uint8List>();
-          var sink = new ByteConversionSink.withCallback(
-                       (bytes) => completer.complete(new Uint8List.fromList(bytes))
-                    );
-          controller.stream.listen(sink.add, onError: completer.completeError, onDone: sink.close, cancelOnError: true);
-          bytes = await completer.future;
+          Uint8List bytesNew = await bytesProvider(bytes:bytes, boundary:boundary, filename:filename, fileType:fileType);      
+          bytes = bytesNew;
           bytesList.add(bytes);
 
           HttpClientFileInfo fileOBJ = HttpClientFileInfo();
@@ -134,29 +252,7 @@ class HttpClientUpLoader{
           willFileList(fileInfo);
         }
 
-        int count = bytesList.length;
-        bool responseFailure = false;
-        List<dynamic> responsList = [];
-
-        for (var i = 0; i < bytesList.length; i++) {
-          List<int>bytes = bytesList[i];
-          Map headers = headersList[i];
-          HttpClientManager.postBytes(baseUrl: baseUrl, urlPath: urlPath, bytes: bytes, headers: headers, success: (Map<String,dynamic> response) {
-            if (responseFailure){ return; }
-
-            count = count - 1;
-            dynamic data = response['data'];
-            if (data != null) {
-              responsList.add(data);
-            }
-            if(count == 0) {
-              success({'data':responsList});
-            }
-          }, failure: (int code, String msg, String rawResponseString) {
-            responseFailure = true;
-            failure(code, msg, rawResponseString);
-          });
-        }
+        postImageBytes(urlPath:urlPath, bytesList:bytesList, headersList:headersList, success:success, failure:failure, baseUrl:baseUrl);
       } catch (e) {
         ResponseError error = HttpClientError.tryCatch(e);
         failure(error.errCode, error.errMsg, error.errBody);
@@ -296,5 +392,30 @@ class HttpClientUpLoader{
     0x6A,0x6B,0x6C,0x6D,0x6E,0x6F,
     0x70,0x71,0x72,0x73,0x74,0x75,0x76,0x77,0x78,0x79,0x7A
   ];
+
+
+  /// 通过ImageProvider获取图片流 
+  static Future<Uint8List> loadImageByProvider(   
+    ImageProvider provider, {
+     @required APIFailureResponseHandler failure,  
+     ImageConfiguration config = ImageConfiguration.empty}) async {  
+
+       var completer = new Completer<Uint8List>();
+       ImageStreamListener listener;   
+       ImageStream stream = provider.resolve(config); 
+
+       listener = ImageStreamListener((ImageInfo frame, bool sync) async {       
+         ByteData byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+         Uint8List data = byteData.buffer.asUint8List();
+         completer.complete(data); 
+         stream.removeListener(listener);  
+       }, onError:(dynamic exception, StackTrace stackTrace) {
+         String message = exception.toString();
+         failure(imgaeErrorCode,message,exception.toString());
+       });   
+          
+       stream.addListener(listener); 
+       return completer.future; 
+    } 
 
 }
